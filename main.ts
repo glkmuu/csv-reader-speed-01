@@ -27,15 +27,24 @@ const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
 const cases = JSON.parse(readFileSync(join(inputDir, 'cases.json'), 'utf8'));
 
+// writeSync may write fewer bytes than asked for, so loop until the
+// whole buffer is out; a short write here would corrupt answers.json.
+// (The buffer form takes a byte offset, which the string form does not.)
+function writeAll(fd, s) {
+  const buf = Buffer.from(s, 'utf8');
+  let off = 0;
+  while (off < buf.length) off += writeSync(fd, buf, off, buf.length - off, null);
+}
+
 mkdirSync(outputDir, { recursive: true });
 const fd = openSync(join(outputDir, 'answers.json'), 'w');
 try {
-  writeSync(fd, '[');
+  writeAll(fd, '[');
   for (let i = 0; i < cases.length; i++) {
-    if (i > 0) writeSync(fd, ',');
-    writeSync(fd, JSON.stringify(run(cases[i].input)));
+    if (i > 0) writeAll(fd, ',');
+    writeAll(fd, JSON.stringify(run(cases[i].input)));
   }
-  writeSync(fd, ']');
+  writeAll(fd, ']');
 } finally {
   closeSync(fd);
 }
